@@ -41,6 +41,9 @@ recode suicide ( 1 2 = 1)
 gen spn 	= cond(codcat==2 & neop_cod==2,1,0)
 gen recur 	= cond(codcat==2 & neop_cod==1,1,0)
 
+//allcauses except recucurrence
+gen allcodexcrecur = cond(allcauses==1 & recur!=1 , 1, 0)
+
 tempfile codcat
 save `codcat'
 

@@ -17,6 +17,9 @@ local xtime 70
 *-------------------------------------------------------------------------------
 use  "$temp/x-mort3-stset-allcauses"  , clear
 
+
+
+
 stexpect conditional , ratevar(newrate) 		///
 out($temp/x-mort3-expected-allcause , replace) 	///
 method(2) at(5(1)`xtime') npoints(10)			
@@ -63,7 +66,7 @@ gen expected = (1-conditional)*100
 twoway
 
 /* CAUSES OF DEATH*/
-(line ci_recur ci_allcodexcrecur _t if (_t>=5 & _t<= 70) 
+(line ci_recur ci_allcodexrecur _t if (_t>=5 & _t<= 70) 
 , sort connect(J J J J) clp(solid solid solid solid) 
 clw(med med med med) clc(black blue red green))
 	
@@ -76,7 +79,7 @@ clw(med med med med) clc(black blue red green))
 	/*LABELS*/
 	xtitle("Attained age, years" ,size(small))
 	ytitle("Cumulative mortality, %" , size(small))
-	ylabel(0(5)30, angle(0)) xlabel(5(5)70)
+	ylabel(0(1)16, angle(0)) xlabel(5(5)70)
 	
 	/*LEGEND*/
 	legend(on) 
