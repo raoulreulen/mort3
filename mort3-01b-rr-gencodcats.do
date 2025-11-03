@@ -68,6 +68,9 @@ rename (exit2020 survdate) (dox doe)
 //add one day if doe and dox are same
 replace dox = dox + (1/365.25) if doe==dox
 
+//calculate age at exit 
+gen agex = (dox - dob)/365
+
 save "$temp/x-mort3-prepforstset" , replace
 
 exit

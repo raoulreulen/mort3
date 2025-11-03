@@ -27,7 +27,7 @@ use `mort3' , clear //read the original file
 	stsplit ageband, at(0 1 5(5)85 110) 
 	stsplit yeargrp, after(time=d(1/1/1900)) at(45(1)122) 
 	replace yeargrp = 1900 + yeargrp
-
+	
 	//replace years no rates available
 	replace yeargrp=1950 if yeargrp <1950
 	replace yeargrp=2019 if yeargrp >2019. //need updated mortality rates
