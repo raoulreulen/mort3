@@ -21,7 +21,7 @@ use "$temp/x-mort3-stset-`x'"  , clear
 *keep if age50>=50
 
 	gen _e  = (_t- _t0)*rate_`x'
-	gen _y  = (_t-_t0)/10000
+	gen _y  = (_t-_t0)/100000
 	
 	collapse (sum) _d _e _y 
 	gen strcod = "`x'"
@@ -33,7 +33,7 @@ use "$temp/x-mort3-stset-`x'"  , clear
 	}
 	
 	
-smraer _d _e _y , desaer(1) dessmr(1)
+smraer _d _e _y , desaer(0) dessmr(1)
 
 
 *-----------------------------------------------------------------------------------------

@@ -18,7 +18,7 @@ use "$temp/x-mort3-stset-allcauses", clear
 *-------------------------------------------------------------------------------
 // Calculate observed deaths, expected deaths, and person-years
 gen _e  = (_t - _t0) * rate_allcauses
-gen _y  = (_t - _t0) / 10000
+gen _y  = (_t - _t0) / 100000
 
 // Expand dataset to create overall row
 expand 2, gen(tag)
@@ -30,7 +30,7 @@ preserve
 collapse (sum) _d _e _y, by(diag)
 
 // Calculate SMR and AER using custom smraer command
-smraer _d _e _y, desaer(1) dessmr(1)
+smraer _d _e _y, desaer(0) dessmr(1)
 
 // Save SMR/AER results
 tempfile smraer_results
@@ -160,7 +160,7 @@ varnames ///
 border(start, nil) border(insideV, nil) border(end, nil) width(100%) ///
 layout(autofitcontents) border(all, nil) ///
 title("Table 3. All-cause mortality by childhood cancer type: SMR, AER, and life expectancy") ///
-note("SMR = Standardized Mortality Ratio; AER = Absolute Excess Risk per 10,000 person-years; LE = Life Expectancy in years" , font(arial narrow, "8"))
+note("SMR = Standardized Mortality Ratio; AER = Absolute Excess Risk per 100,000 person-years; LE = Life Expectancy in years" , font(arial narrow, "8"))
 
 // Format table headers and cells
 putdocx table tbl1(1,.), bold

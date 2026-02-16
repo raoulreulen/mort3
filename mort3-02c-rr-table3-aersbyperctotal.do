@@ -30,7 +30,7 @@ foreach x in `cod' {
 	stsplit agec, at(0 30(10)60 110) after(time=dob)
 	
 	gen _e 	= rate_`x'*(_t-_t0)
-	gen _y 	= (_t-_t0) /10000
+	gen _y 	= (_t-_t0) /100000
 		
 	collapse (sum) _d _y _e, by(agec)
 	gen str cod = "`x'"

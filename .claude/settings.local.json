@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(findstr:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "WebFetch(domain:fmwww.bc.edu)",
+      "WebFetch(domain:ideas.repec.org)"
     ]
   }
 }

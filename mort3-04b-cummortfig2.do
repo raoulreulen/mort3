@@ -2,12 +2,8 @@
 FIGURE 2 like in JAMA PAPER - CUM MORT ALL CAUSES 
 
 ==============================================================================*/
-local cod spn recur circulation respiratory external
+local cod spn recur circulation respiratory 
 
-/*
-blood endocrine mental nervous circulation ///
-respiratory digestive muscoskeletal genitourinary perinatal other external 
-*/
 
 local j = 0
 local xtime 70
@@ -17,11 +13,11 @@ local xtime 70
 *-------------------------------------------------------------------------------
 use  "$temp/x-mort3-stset-allcauses"  , clear
 
-/*
+
 stexpect conditional , ratevar(newrate) 		///
 out($temp/x-mort3-expected-allcause , replace) 	///
 method(2) at(5(1)`xtime') npoints(10)			
-*/
+
 
 *-------------------------------------------------------------------------------
 * STCOMPET PER COD
@@ -48,40 +44,65 @@ foreach x in `cod' {
 
 
 *-------------------------------------------------------------------------------
-* APPEND ALL FILES 
+* APPEND ALL FILES
 *-------------------------------------------------------------------------------
-use "$temp/x-mort3-expected-allcause" , clear	
-append using  `spn' `recur' `circulation' `respiratory' `external' 
+use "$temp/x-mort3-expected-allcause" , clear
+foreach x of local cod {
+	append using ``x''
+}
 gen expected = (1-conditional)*100
 
 
 
 *-------------------------------------------------------------------------------
-* FIGURE 
+* FIGURE — build line variables, styles and legend from cod local
 *-------------------------------------------------------------------------------
+// Colours to cycle through (add more if needed)
+local colours black blue red green orange purple
+
+// Build: ci variable list, connect/clp/clw/clc options, legend order
+local civars
+local conn
+local clps
+local clws
+local clcs
+local legorder
+local k = 0
+foreach x of local cod {
+	local ++k
+	local civars `civars' ci_`x'
+	local conn   `conn' J
+	local clps   `clps' solid
+	local clws   `clws' med
+	local col : word `k' of `colours'
+	local clcs   `clcs' `col'
+	local legorder `legorder' `k' "`x'"
+}
+// Expected mortality is the next series after the COD lines
+local ++k
+local legorder `legorder' `k' "expected mortality"
+
 #delimit ;
 
 twoway
 
-/* CAUSES OF DEATH*/
-(line ci_recur ci_spn ci_circulation ci_respiratory ci_external _t if (_t>=5 & _t<= 70) 
-, sort connect(J J J J) clp(solid solid solid solid) 
-clw(med med med med) clc(black blue red green))
-	
-/* EXPECTED DEATHS*/
-(lowess expected t_exp if (t_exp>=5 & t_exp<= 70), sort bw(0.3) clp(l) clc(cyan) clp(shortdash))	
-	
-	/* OPTIONS*/
+/* CAUSES OF DEATH */
+(line `civars' _t if (_t>=5 & _t<=`xtime')
+, sort connect(`conn') clp(`clps') clw(`clws') clc(`clcs'))
+
+/* EXPECTED DEATHS */
+(lowess expected t_exp if (t_exp>=5 & t_exp<=`xtime')
+, sort bw(0.3) clp(shortdash) clc(cyan))
+
 	,
-	
+
 	/*LABELS*/
-	xtitle("Attained age, years" ,size(small))
-	ytitle("Cumulative mortality, %" , size(small))
-	ylabel(0(1)16, angle(0)) xlabel(5(5)70)
-	
+	xtitle("Attained age, years", size(small))
+	ytitle("Cumulative mortality, %", size(small))
+	ylabel(0(1)16, angle(0)) xlabel(5(5)`xtime')
+
 	/*LEGEND*/
-	legend(on) 
-	legend(order(1 "recurrence" 2 "spn" 3 "circulation" 4 "respiratory" 5 "external" 6 "expected mortality")
+	legend(on order(`legorder')
 	ring(0) position(11) size(small) rowgap(0.1) cols(1))
 
 ;
