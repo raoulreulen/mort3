@@ -1,0 +1,9 @@
+/*=========================================================================================
+RUN THIS DO-FILE FIRST WHEN STARTIGN STATA AS IT WILL SET THE CORRECT WD
+========================================================================================*/
+
+//Raoul's PC
+global data 	"D:/DATAWORK/mort3"
+global temp 	"D:/TEMPWORK"
+global rates 	"C:\Users\raoul\OneDrive - University of Birmingham\mort3"
+

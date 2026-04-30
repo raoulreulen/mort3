@@ -14,7 +14,7 @@ rename (cat) (codcat)
 * relabel the codcat variable
 label define CAT 0 "unknown" 1 "infection" 2 "neoplasm" 3 "blood" 			 ///
 	4 "endocrine" 5 "mental" 6 "nervous" 7 "circulation" 8 "respiratory"	 ///
-	9 "digestive" 10 "muscoskeletal" 11 "genitourinary" 12 "perinatal" 13 "other" 14 	///
+	9 "digestive" 10 "muscoskeletal" 11 "genitourinary" 12 "perinatal" 13 "other" 14 ///
 	"external" , modify
 	
 * Create the dummy variables with a temporary prefix
@@ -48,21 +48,24 @@ tempfile codcat
 save `codcat'
 
 
-
-
 *-------------------------------------------------------------------------------
 * MERGE BASIC COHORT FILE BCCSS WITH COD FILE 
 *-------------------------------------------------------------------------------
 
 //read spn cohort file (need new file from Dave)
-use "$data/bccssbasiccohortfromspn"  , clear 
+use "$temp/x-mort3-covarbccssdata"  , clear 
 
 // merge with entire cohort from SPN (thif file doesnt have dob for example)
 merge 1:1 indexno using `codcat'
 drop _merge
 
 
-rename (exit2020 survdate) (dox doe)
+gen doe = mdy(month(fpt), day(fpt) , year(fpt) + 5)
+replace doe = mdy(3, 1, year(fpt) + 5) if mi(doe) & month(fpt)==2 & day(fpt)==29
+format %td doe
+label var doe "date of entry cohort (aka 5-year survival)"
+
+rename fpt fptdate
 
 
 //add one day if doe and dox are same
