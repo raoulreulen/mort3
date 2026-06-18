@@ -67,6 +67,13 @@ label var doe "date of entry cohort (aka 5-year survival)"
 
 rename fpt fptdate
 
+gen fptyear = year(fptdate)
+egen decdxcat =  cut(fptyear) , at(1900 1970 1980 1990 2000 2020)
+
+gen agedx = (fptdate-dob)/365.24
+egen agedxcat = cut(agedx) , at(0 4 8 12 20)
+
+
 
 //add one day if doe and dox are same
 replace dox = dox + (1/365.25) if doe==dox

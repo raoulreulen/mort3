@@ -28,8 +28,11 @@ gen fux = (dox-fptdate)/365.25
 label var fux "time since diagnosis (continuous)"
 
 //age at each exit (take last one!)
-gen agex = (dox-dob)/365.25
-label var agex "Attained age (continuous)"
+*gen agex = (dox-dob)/365.25
+*label var agex "Attained age (continuous)"
+
+
+
 
 stvary sex diag doe //check these variables do not vary
 assert  r(varies) ==  0

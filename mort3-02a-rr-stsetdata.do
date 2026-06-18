@@ -35,7 +35,7 @@ use `mort3' , clear //read the original file
 	drop if round(_t0, 0.001)==4.999 & _t==5
 	
 	sort sex ageband yeargrp
-	merge m:1 sex ageband yeargrp using "$rates/`x'.dta" , keepusing(newrate)
+	merge m:1 sex ageband yeargrp using "$rates/`x'" , keepusing(newrate)
 	assert _merge!=1
 	keep if _merge==3
 	

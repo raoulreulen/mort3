@@ -17,8 +17,8 @@ local i = 0
 foreach x of local cod { 
 use "$temp/x-mort3-stset-`x'"  , clear
 
-*stsplit age50 , at(50) after(dob)
-*keep if age50>=50
+stsplit age60 , at(60) after(dob)
+keep if age60>=60
 
 	gen _e  = (_t- _t0)*rate_`x'
 	gen _y  = (_t-_t0)/100000
@@ -56,7 +56,7 @@ putdocx table tbl1 = data("strcod strobsperc strexp smrstr aerstr") , varnames /
 border(start, nil) border(insideV, nil) border(end, nil) width(100%) 				   ///
 layout(autofitcontents) border(all, nil) 											   ///
 title("Table 2. Standardised mortality ratios and absolute excess risks for specific causes of death") ///
-note("*per 10,000 person-years" , font(arial narrow, "8"))
+note("*per 100,000 person-years" , font(arial narrow, "8"))
 
 //bold and centre columns
 putdocx table tbl1(1,.), bold
