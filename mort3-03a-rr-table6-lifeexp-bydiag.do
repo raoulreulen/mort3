@@ -159,7 +159,7 @@ putdocx table tbl1 = data("strdiag strobsperc strexp smrstr aerstr str_le_obs st
 varnames ///
 border(start, nil) border(insideV, nil) border(end, nil) width(100%) ///
 layout(autofitcontents) border(all, nil) ///
-title("Table 3. All-cause mortality by childhood cancer type: SMR, AER, and life expectancy") ///
+title("Table 6. All-cause mortality by childhood cancer type: SMR, AER, and life expectancy") ///
 note("SMR = Standardized Mortality Ratio; AER = Absolute Excess Risk per 100,000 person-years; LE = Life Expectancy in years" , font(arial narrow, "8"))
 
 // Format table headers and cells
