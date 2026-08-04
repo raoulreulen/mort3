@@ -1,5 +1,6 @@
 /*==============================================================================
 COHORT CHARACTERISTICS: PERSON-YEARS, ATTAINED AGE, FOLLOW-UP TIME
+THESE MEASURES ARE OFTEN ASKED FOR BY COAUTHORS AND REFEREES SO BETTER HAVE THEM
 =============================================================================*/
 
 use "$temp/x-mort3-prepforstset", clear
@@ -23,9 +24,12 @@ scalar s_agex_max    = r(max)
 scalar s_agex_median = r(p50)
 
 *-------------------------------------------------------------------------------
-* 3. EMBARKATION (flag2020==2)
+* 3. NUMBER OF SURVIVORS THAT EMBARKED (LEFT NHS/MOVED ABROAD) (flag2020==2)
 *-------------------------------------------------------------------------------
-quietly count if flag2020 == 2
+//note: in the last data update Dave removed "flag2020" , use "vitstat" instead
+
+*quietly count if flag2020 == 2
+qui: count if vitstat==1  //1=lost-to-followup
 scalar s_embark = r(N)
 
 *-------------------------------------------------------------------------------
@@ -73,7 +77,7 @@ replace Characteristic = "Attained age at end of study: maximum"           in 4
 replace Characteristic = "Reached age 40 or older, %"                     in 5
 replace Characteristic = "Reached age 50 or older, %"                     in 6
 replace Characteristic = "Median follow-up time, years (IQR)"             in 7
-replace Characteristic = "Embarkation (flag2020=2), n"                    in 8
+replace Characteristic = "Embarkation (vitstat=1), n"                    in 8
 
 replace Value = string(s_py, "%12.0fc")                                              in 1
 replace Value = string(s_agex_min,    "%4.1f")                                       in 2

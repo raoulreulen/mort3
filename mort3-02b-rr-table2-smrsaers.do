@@ -17,8 +17,8 @@ local i = 0
 foreach x of local cod { 
 use "$temp/x-mort3-stset-`x'"  , clear
 
-stsplit age60 , at(60) after(dob)
-keep if age60>=60
+*stsplit age60 , at(60) after(dob)
+*keep if age60>=60
 
 	gen _e  = (_t- _t0)*rate_`x'
 	gen _y  = (_t-_t0)/100000

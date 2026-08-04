@@ -60,19 +60,46 @@ merge 1:1 indexno using `codcat'
 drop _merge
 
 
+//TYEP OF CHILDHOOD CANCER (MEDICCC)
+gen diag = .
+replace diag = 1 	if inrange(mediccc, 11, 15)
+replace diag = 2 	if mediccc==21
+replace diag = 3 	if mediccc==22
+replace diag = 4 	if inrange(mediccc , 31, 36)
+replace diag = 5 	if mediccc==41
+replace diag = 6 	if mediccc==51 & genretino==1
+replace diag = 7 	if mediccc==51 & genretino==0
+replace diag = 8 	if mediccc==61
+replace diag = 9 	if inrange(mediccc, 81, 85)
+replace diag = 10 	if inrange(mediccc, 91, 95)
+replace diag = 11 	if inlist(mediccc,23,24, 25, 42, 62, 63, 71, 72, 73) | 	///
+					   inrange(mediccc, 101, 122)  | medicc==292
+					   
+//NB: check with Dave what is code mediccc 292?					   
+					   
+label define ldiag 0 "overall" 1 "leukaemia" 2 "Hodgkins" 3 "NHL"  		///
+4 "CNS"  5 "neuroblastoma" 6 "hretino" 7 "nhretino" 					///
+8 "Wilms" 9 "bone" 10 "softtissue" 11 "other"
+
+label values diag ldiag
+
+assert !mi(diag)
+
+//DATE OF ENTRY
 gen doe = mdy(month(fpt), day(fpt) , year(fpt) + 5)
 replace doe = mdy(3, 1, year(fpt) + 5) if mi(doe) & month(fpt)==2 & day(fpt)==29
 format %td doe
 label var doe "date of entry cohort (aka 5-year survival)"
 
+//FPT DATE
 rename fpt fptdate
 
 gen fptyear = year(fptdate)
 egen decdxcat =  cut(fptyear) , at(1900 1970 1980 1990 2000 2020)
 
+//AGE AT DIAGNOSIS
 gen agedx = (fptdate-dob)/365.24
 egen agedxcat = cut(agedx) , at(0 4 8 12 20)
-
 
 
 //add one day if doe and dox are same

@@ -82,9 +82,11 @@ use `dataset' if _d==1 , clear
 *bysort pcsfid: keep if _n==_N //if more than one digestive per individual
 table1  ,  vars(`table1opts') format(%2.1f)  miss saving("$temp/tab1_pcsf.xls", sheet(events)) 
 
-9888
 
 
+/*
+
+IGNORE CODE BELOW - JUST TRYING SOME THIGNGS
 
 *-------------------------------------------------------------------------------
 * NEW TABLE COMMAND
@@ -189,27 +191,7 @@ sum agedx , detail
 sum agedx if _d==1 , detail
 
 
-
-
-
-exit
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+*/
 
 
 exit

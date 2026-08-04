@@ -99,7 +99,7 @@ order cod strpcaer*  pcaer* _d* aerstr*
 * TABLE WORD
 *-------------------------------------------------------------------------------	
 cap: putdocx clear
-putdocx begin,  font(arial narrow, "9") landscape  
+putdocx begin,  font(arial narrow, "8") landscape  
 putdocx paragraph
 
 putdocx table tbl1 = data("cod _d0 aerstr0 strpcaer0  _d30 aerstr30 strpcaer30 _d40 aerstr40 strpcaer40 _d50 aerstr50 strpcaer50 _d60 aerstr60 strpcaer60") , varnames 				///

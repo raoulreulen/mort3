@@ -40,7 +40,7 @@ foreach x of local cod {
 
 	// Load the stset dataset for this COD
 	use "$temp/x-mort3-stset-`x'", clear
-
+	
 	// _e = expected deaths (individual person-time * expected rate)
 	// _y = person-years in units of 10,000 (for AER scaling)
 	gen _e = rate_`x' * (_t - _t0)
@@ -100,7 +100,7 @@ local ncols = `ncols' + 1          // +1 for the cod column
 * 5. EXPORT TO WORD TABLE (putdocx)
 *-------------------------------------------------------------------------------
 cap putdocx clear
-putdocx begin, font(arial narrow, "8") landscape
+putdocx begin, font(arial narrow, "7") landscape
 putdocx paragraph
 
 // --- Title: "Table 4" in bold, remainder in normal weight ----
