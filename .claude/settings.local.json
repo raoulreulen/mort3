@@ -15,7 +15,14 @@
       "Bash(echo \"exit=$?\")",
       "Bash(cd \"/c/Users/raoul/AppData/Local/Temp/claude/C--Users-raoul-Documents-GitHub-mort3/c6eb1971-ead0-49f4-902a-42151987e1ef/scratchpad\" && ls -la testhdr.log testhdr.docx 2>&1; echo \"--- log ---\"; cat testhdr.log 2>/dev/null | tail -40)",
       "Bash(python -)",
-      "Bash(grep -n \"version\\\\|aer\\\\b\\\\|aerll\\\\|aerul\\\\|syntax\" \"/c/Users/raoul/OneDrive - University of Birmingham/ado/personal/smraer.ado\" | head -25)"
+      "Bash(grep -n \"version\\\\|aer\\\\b\\\\|aerll\\\\|aerul\\\\|syntax\" \"/c/Users/raoul/OneDrive - University of Birmingham/ado/personal/smraer.ado\" | head -25)",
+      "Bash(tasklist)",
+      "Bash(cp e2e/table5_smraerbyattage_cod3paper.docx baseline_table5.docx)",
+      "Bash(sed 's|^shell \"\\\\$temp/table5_smraerbyattage_cod3paper.docx\"|// shell suppressed for test|' /c/Users/raoul/Documents/GitHub/mort3/mort3-02e-rr-table5-smraerbyattage.do)",
+      "Bash(mv profile.do perf-profile.do.txt)",
+      "Bash(rm -f profile2.do profile.log profile2.log)",
+      "Read(//c/ado/**)",
+      "Read(//c/Program Files/StataNow19/ado/base/g/**)"
     ]
   }
 }

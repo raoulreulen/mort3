@@ -62,24 +62,25 @@ drop _merge
 
 //TYEP OF CHILDHOOD CANCER (MEDICCC)
 gen diag = .
-replace diag = 1 	if inrange(mediccc, 11, 15)
-replace diag = 2 	if mediccc==21
-replace diag = 3 	if mediccc==22
-replace diag = 4 	if inrange(mediccc , 31, 36)
-replace diag = 5 	if mediccc==41
-replace diag = 6 	if mediccc==51 & genretino==1
-replace diag = 7 	if mediccc==51 & genretino==0
-replace diag = 8 	if mediccc==61
-replace diag = 9 	if inrange(mediccc, 81, 85)
-replace diag = 10 	if inrange(mediccc, 91, 95)
-replace diag = 11 	if inlist(mediccc,23,24, 25, 42, 62, 63, 71, 72, 73) | 	///
+replace diag = 1 	if inrange(mediccc, 11, 15) & mediccc!=12 //12=AML
+replace diag = 2 	if mediccc==12
+replace diag = 3 	if mediccc==21
+replace diag = 4 	if mediccc==22
+replace diag = 5 	if inrange(mediccc , 31, 36)
+replace diag = 6 	if mediccc==41
+replace diag = 7 	if mediccc==51 & genretino==1
+replace diag = 8 	if mediccc==51 & genretino==0
+replace diag = 9 	if mediccc==61
+replace diag = 10 	if inrange(mediccc, 81, 85)
+replace diag = 11 	if inrange(mediccc, 91, 95)
+replace diag = 12 	if inlist(mediccc,23,24, 25, 42, 62, 63, 71, 72, 73) | 	///
 					   inrange(mediccc, 101, 122)  | medicc==292
 					   
 //NB: check with Dave what is code mediccc 292?					   
 					   
-label define ldiag 0 "overall" 1 "leukaemia" 2 "Hodgkins" 3 "NHL"  		///
-4 "CNS"  5 "neuroblastoma" 6 "hretino" 7 "nhretino" 					///
-8 "Wilms" 9 "bone" 10 "softtissue" 11 "other"
+label define ldiag 0 "overall" 1 "Leukaemia (except AML)"  2  "AML" 3 "Hodgkins"	///
+ 4 "NHL" 5 "CNS"  6 "neuroblastoma" 7 "hretino" 8 "nhretino" 						///
+9 "Wilms" 10 "bone" 11 "softtissue" 12 "other"
 
 label values diag ldiag
 
