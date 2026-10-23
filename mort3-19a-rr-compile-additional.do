@@ -1,13 +1,13 @@
 /*==============================================================================
  COMPILE ALL ADDITIONAL-ANALYSIS TABLES INTO ONE WORD DOCUMENT
  Inputs : $output/table_*.docx (from do-files 10a-13c) and $output/fig_*.png
- Output : $od/manuscript/late death v3 - additional analyses v1.0 <date>.docx
+ Output : $od/manuscript/late death v3 - additional analyses v1.1 <date>.docx
  RCR (Claude-assisted) 23 Oct 2026
 ==============================================================================*/
 do "/Users/raoulreulen/Documents/GitHub/mort3/mort3-00c-rr-setwd-mac.do"
 
 local date : display %tdDDMonCCYY date("`c(current_date)'", "DMY")
-local outfile "$od/manuscript/late death v3 - additional analyses v1.0 `date'.docx"
+local outfile "$od/manuscript/late death v3 - additional analyses v1.1 `date'.docx"
 
 local tables ///
 	table_era_poisson table_sex_smraer table_period_2010_2022 ///
@@ -15,7 +15,7 @@ local tables ///
 	table_multiple_cause table_sensitivity
 
 local figs ///
-	fig_lel_bydiag fig_le_bydecade fig_lyl_bycause fig_mortality_age_gap ///
+	fig_lel_bydiag fig_lel_bydiag_1990plus fig_le_bydecade fig_lyl_bycause fig_mortality_age_gap ///
 	fig_aer_heatmap fig_smr_heatmap fig_multiple_cause
 
 putdocx clear

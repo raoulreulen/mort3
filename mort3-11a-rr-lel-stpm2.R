@@ -11,7 +11,10 @@
 #          $output/table_lel_bysex.csv      (sex-specific, overall and by diag)
 #          $output/fig_lel_bydiag.png        (LEL at age 20 by cancer type)
 #          $output/fig_le_bydecade.png       (survivor vs expected LE at age 20)
+#          $output/table_lel_1990plus.csv   (era-specific: diag x era model; 1990-2006 and 1980-89, a0 20/30/40)
+#          $output/fig_lel_bydiag_1990plus.png (LEL at 20 by type, 1990-2006 vs all eras)
 #          $output/lel_model_checks.txt      (expected-deaths check, SMR, fit stats)
+#  NB: LE columns are REMAINING years of life from age a0; age reached = a0 + remaining LE.
 #          scratch/x-mort3-lel-split.rds     (split dataset, reused by nothing else)
 #
 # Method
@@ -119,6 +122,11 @@ p1[, `:=`(fdiag = factor(diag, levels = 1:11, labels = DIAGLAB),
 s[, `:=`(fdiag = factor(diag, levels = 1:11, labels = DIAGLAB),
          fsex  = factor(sex, levels = 1:2, labels = c("male", "female")),
          fdec  = factor(decdxcat, levels = c(1900, 1970, 1980, 1990, 2000), labels = DECLAB))]
+# 0/1 indicators for cancer type (rstpm2's tvc treats a factor as as.numeric(factor), so the
+# time-dependent effect must be specified on indicator columns, one per non-reference type)
+add_dg <- function(dt, diagv) { for (k in 2:11) dt[[paste0("dg", k)]] <- as.numeric(diagv == k); dt }
+p1 <- add_dg(p1, p1$diag); s <- add_dg(s, s$diag)
+TVC <- setNames(as.list(rep(2, 10)), paste0("dg", 2:11))
 
 #------------------------------------------------------------------------------
 # 2. Models
@@ -144,14 +152,33 @@ if (file.exists(fitfile) && Sys.getenv("LEL_REFIT") != "1") {
   t0 <- Sys.time()
   m2 <- stpm2(Surv(age_start, age_end, event) ~ fdiag + fsex + fdec, data = s, bhazard = s$newrate, df = 5)
   note("Model 2 (diag+sex+decade): %.0f s, AIC %.1f (model 1 AIC %.1f)", as.numeric(Sys.time() - t0, units = "secs"), AIC(m2), AIC(m1_split))
-  t0 <- Sys.time()
-  m3 <- tryCatch(
-    stpm2(Surv(age_start, age_end, event) ~ fdiag + fsex + fdec, data = s, bhazard = s$newrate, df = 5,
-          tvc = list(fdiag = 2)),
-    error = function(e) { note("Model 3 (tvc diag) failed: %s", conditionMessage(e)); NULL })
-  if (!is.null(m3)) note("Model 3 (diag+sex+decade, tvc diag df=2): %.0f s, AIC %.1f", as.numeric(Sys.time() - t0, units = "secs"), AIC(m3))
-  saveRDS(list(m1_split = m1_split, m2 = m2, m3 = m3), fitfile)
+  saveRDS(list(m1_split = m1_split, m2 = m2), fitfile)
 }
+# Model 3: time-dependent (2 df) effect of each cancer type. Fitted on the person-level records
+# (likelihood-identical, see model 1 check) starting from the model 2 solution: seconds instead
+# of minutes and no memory problems with the larger design matrix. NB rstpm2's default starting
+# values are useless for person-level records with long intervals, and a supplied init must carry
+# the exact coefficient names (mle2 matches by name), which are taken from a throw-away fit on a
+# small subsample.
+fit_named <- function(formula, data, base, label, tvc = TVC) {
+  t0 <- Sys.time()
+  m0 <- tryCatch(suppressWarnings(stpm2(formula, data = data, bhazard = data$newrate, df = 5, tvc = tvc)),
+                 error = function(e) { note("%s: not estimable (%s)", label, conditionMessage(e)); NULL })
+  if (is.null(m0)) return(NULL)
+  nm <- names(coef(m0))
+  init <- setNames(numeric(length(nm)), nm)
+  common <- intersect(nm, names(coef(base))); init[common] <- coef(base)[common]
+  m <- tryCatch(stpm2(formula, data = data, bhazard = data$newrate, df = 5, tvc = tvc, init = init),
+                error = function(e) { note("%s failed: %s", label, conditionMessage(e)); NULL })
+  if (!is.null(m)) note("%s: %.0f s, AIC %.1f, stable = %s, max SE %.2f, max |coef| %.1f", label,
+                        as.numeric(Sys.time() - t0, units = "secs"), AIC(m), stable(m), max(sqrt(diag(vcov(m)))), max(abs(coef(m))))
+  m
+}
+stable <- function(m) {
+  if (is.null(m)) return(FALSE)
+  se <- sqrt(diag(vcov(m))); all(is.finite(se)) && max(se) < 10 && all(abs(coef(m)) < 15)
+}
+m3 <- fit_named(Surv(age_start, age_end, event) ~ fdiag + fsex + fdec, p1, m2, "Model 3 (diag+sex+decade, tvc each diag df=2)")
 conv_ok <- FALSE
 if (!is.null(m3)) {
   se3 <- sqrt(diag(vcov(m3)))
@@ -160,7 +187,10 @@ if (!is.null(m3)) {
 }
 use_m3 <- !is.null(m3) && conv_ok && AIC(m3) < AIC(m2) - 2
 fit <- if (use_m3) m3 else m2
-note("Final model: %s", if (use_m3) "model 3 (time-dependent diag effect)" else "model 2 (proportional)")
+note("Final model: %s", if (use_m3) "model 3 (time-dependent diag effect)" else "model 2 (proportional excess hazards)")
+cells <- p1[, .(deaths = sum(event), n = .N), by = .(fdiag, fdec)][order(fdiag, fdec)]
+note("Cancer type x decade cells with < 5 deaths (these make a full type x decade interaction non-estimable):")
+for (i in which(cells$deaths < 5)) note("  %-30s %-8s deaths = %d (n = %d)", cells$fdiag[i], cells$fdec[i], cells$deaths[i], cells$n[i])
 cf <- coef(fit); V <- vcov(fit)
 note("Coefficients (excess hazard ratios):")
 hr <- exp(cf[!grepl("nsx", names(cf))])
@@ -214,6 +244,7 @@ B <- cbind(cf, B)                     # column 1 = point estimate
 lel_profile <- function(pr) {
   nd <- data.frame(age_start = 5, age_end = gpos, event = 0, newrate = 0,
                    fdiag = pr$fdiag, fsex = pr$fsex, fdec = pr$fdec)
+  nd <- add_dg(nd, pr$diag)
   X <- predict(fit, newdata = nd, type = "lpmatrix")
   eta <- X %*% B                       # ngrid x (NSIM+1)
   cumexc <- exp(eta)                   # cumulative excess hazard Lambda_e(a)
@@ -282,6 +313,10 @@ res_diagsex <- rbindlist(lapply(A0S, run_group, expr_str = "diag*10+sex"))[, `:=
 res <- rbind(res_overall, res_diag, res_dec, res_sex, res_diagsex)
 res[, grp := NULL]
 setcolorder(res, c("group", "level", "a0", "n_atrisk"))
+res[, `:=`(exp_age_reached = a0 + exp_le, surv_age_reached = a0 + surv_le)]
+# LE columns are REMAINING years of life from age a0 (not age at death); age reached = a0 + remaining LE
+setnames(res, c("exp_le", "surv_le", "surv_le_lo", "surv_le_hi"), c("exp_rem_le", "surv_rem_le", "surv_rem_le_lo", "surv_rem_le_hi"))
+setcolorder(res, c("group", "level", "a0", "n_atrisk", "exp_rem_le", "exp_age_reached", "surv_rem_le", "surv_rem_le_lo", "surv_rem_le_hi", "surv_age_reached"))
 num <- setdiff(names(res), c("group", "level", "a0", "n_atrisk"))
 res[, (num) := lapply(.SD, round, 2), .SDcols = num]
 
@@ -308,6 +343,7 @@ note("Observed KM cumulative all-cause mortality by age 40/50/60 from entry: %.1
 # model-implied SMR: sum over split records of (newrate + excess hazard at midpoint) * py vs expected
 s[, mid := (age_start + age_end) / 2]
 nd <- data.frame(age_start = 5, age_end = s$mid, event = 0, newrate = 0, fdiag = s$fdiag, fsex = s$fsex, fdec = s$fdec)
+nd <- add_dg(nd, s$diag)
 s[, hexc := as.numeric(predict(fit, newdata = nd, type = "hazard"))]   # excess hazard (bhazard=0 in newdata)
 Opred <- sum((s$newrate + s$hexc) * s$py)
 note("Model-implied deaths = %.0f vs observed %d; implied SMR = %.2f vs observed %.2f", Opred, O, Opred / E, O / E)
@@ -330,7 +366,7 @@ g1 <- ggplot(f1, aes(x = lel, y = level)) +
   geom_errorbarh(aes(xmin = lel_lo, xmax = lel_hi), height = 0, colour = "#1f5fa0") +
   geom_point(size = 2.5, colour = "#1f5fa0") +
   annotate("text", x = ov$lel, y = 0.6, label = sprintf("overall %.1f y", ov$lel), hjust = -0.05, size = 3, colour = "grey30") +
-  labs(x = "Loss in expectation of life from age 20 (years, 95% CI)", y = NULL,
+  labs(x = "Loss in expectation of life from age 20 (remaining years of life lost, 95% CI)", y = NULL,
        title = "Loss in expectation of life by childhood cancer type",
        subtitle = "5-year survivors alive at age 20, standardised to each type's sex and decade-of-diagnosis mix") +
   scale_x_continuous(expand = expansion(mult = c(0.02, 0.08))) +
@@ -346,13 +382,177 @@ g2 <- ggplot(f2l, aes(x = level, y = le, colour = type, group = type)) +
   geom_errorbar(aes(ymin = lo, ymax = hi), width = 0, na.rm = TRUE) +
   geom_line(linewidth = 0.8) + geom_point(size = 2.5) +
   scale_colour_manual(values = c("general population" = "#c8562b", "survivors" = "#1f5fa0"), name = NULL) +
-  scale_y_continuous(limits = c(40, 70)) +
-  labs(x = "Decade of diagnosis", y = "Residual life expectancy at age 20 (years)",
-       title = "Residual life expectancy at age 20 by decade of diagnosis",
+  scale_y_continuous(limits = c(40, 70), sec.axis = sec_axis(~ . + 20, name = "Age reached")) +
+  labs(x = "Decade of diagnosis", y = "Remaining years of life from age 20",
+       title = "Remaining life expectancy from age 20 by decade of diagnosis",
        subtitle = "Survivors (model-based, 95% CI) vs England & Wales 2022 population; standardised to each decade's cancer type/sex mix") +
   theme(legend.position = "top", panel.grid.major.y = element_line(colour = "grey92"), plot.title.position = "plot",
         plot.title = element_text(size = 12), plot.subtitle = element_text(size = 8.5, colour = "grey30"))
 ggsave(file.path(output, "fig_le_bydecade.png"), g2, width = 7, height = 4.5, dpi = 300, bg = "white")
+
+
+#------------------------------------------------------------------------------
+# 8. Era-specific LEL by cancer type: decade x cancer type interaction
+#    Try full diag x decade (5x11) first; if unstable, diag x era (3 eras:
+#    <1980, 1980-89, 1990-2006) with decade main effects retained; if still
+#    unstable, merge the smallest cancer groups.
+#------------------------------------------------------------------------------
+ERALAB <- c("1900" = "<1980", "1970" = "<1980", "1980" = "1980-89", "1990" = "1990-2006", "2000" = "1990-2006")
+d[, era := ERALAB[as.character(decdxcat)]]
+p1[, era := ERALAB[as.character(decdxcat)]]
+s[, era := ERALAB[as.character(decdxcat)]]
+# interaction columns as explicit 0/1 indicators (type k x era/decade j), so that the decade main
+# effects can be retained and the model is nested in model 3 (rstpm2 refuses factor interactions
+# whose lower-order terms are collinear with other covariates)
+ERAS <- c("1980-89", "1990-2006"); DECS <- c(1970, 1980, 1990, 2000)
+add_ix <- function(dt, diagv, erav, decv = NULL, merge_rb = FALSE, full = FALSE) {
+  dk <- diagv; if (merge_rb) dk[dk == 7] <- 6
+  ks <- setdiff(2:11, if (merge_rb) 7 else integer(0))
+  if (full) { for (k in ks) for (j in DECS) dt[[sprintf("ix%d_%d", k, j)]] <- as.numeric(dk == k & decv == j) }
+  else      { for (k in ks) for (j in seq_along(ERAS)) dt[[sprintf("ix%d_e%d", k, j)]] <- as.numeric(dk == k & erav == ERAS[j]) }
+  dt
+}
+fit_ix <- function(cols, data, label) {
+  f <- as.formula(paste("Surv(age_start, age_end, event) ~ fdiag + fsex + fdec +", paste(cols, collapse = " + ")))
+  # same time-dependence as the final main model (tvc only if model 3 was retained), start from its solution
+  fit_named(f, data, fit, label, tvc = if (use_m3) TVC else NULL)
+}
+erafile <- file.path(scratch, "x-mort3-lel-fits-era.rds")
+if (file.exists(erafile) && Sys.getenv("LEL_REFIT_ERA") != "1") {
+  ef <- readRDS(erafile); m4full <- ef$m4full; m4era <- ef$m4era; era_spec <- ef$era_spec; merge_rb <- ef$merge_rb
+  note("Era-interaction fits loaded from cache %s (set LEL_REFIT_ERA=1 to refit)", erafile)
+} else {
+  merge_rb <- FALSE
+  p1 <- add_ix(p1, p1$diag, p1$era, p1$decdxcat, full = TRUE)
+  p1 <- add_ix(p1, p1$diag, p1$era)
+  m4full <- fit_ix(grep("^ix\\d+_\\d{4}$", names(p1), value = TRUE), p1, "Model 4a (diag x decade, 11x5, 40 interaction terms)")
+  m4era <- NULL; era_spec <- "diag x decade"
+  if (!stable(m4full)) {
+    note("Model 4a unstable (cells with no excess deaths drive coefficients to -inf): collapsing to eras <1980, 1980-89, 1990-2006")
+    m4era <- fit_ix(grep("^ix\\d+_e\\d$", names(p1), value = TRUE), p1, "Model 4b (diag x era, 20 interaction terms, decade main effects kept)")
+    era_spec <- "diag x era"
+    if (!stable(m4era)) {
+      note("Model 4b unstable: merging heritable + non-heritable retinoblastoma in the interaction")
+      merge_rb <- TRUE
+      p1 <- add_ix(p1, p1$diag, p1$era, merge_rb = TRUE)
+      m4era <- fit_ix(grep("^ix\\d+_e\\d$", names(p1), value = TRUE), p1, "Model 4c (diag [Rb merged] x era)")
+      era_spec <- "diag (retinoblastoma merged) x era"
+    }
+  }
+  saveRDS(list(m4full = m4full, m4era = m4era, era_spec = era_spec, merge_rb = merge_rb), erafile)
+}
+fit4 <- if (era_spec == "diag x decade") m4full else m4era
+if (!stable(fit4)) { note("No stable era-interaction model; era-specific table not produced"); fit4 <- NULL }
+if (!is.null(fit4)) {
+note("Era-specific model used: %s; AIC %.1f vs final main-effects model AIC %.1f (difference %.1f)",
+     era_spec, AIC(fit4), AIC(fit), AIC(fit) - AIC(fit4))
+cf4 <- coef(fit4); V4 <- vcov(fit4)
+B4 <- cbind(cf4, t(mvrnorm(NSIM, cf4, V4)))
+full4 <- era_spec == "diag x decade"
+A0S_ERA <- c(20, 30, 40)
+
+prof4 <- CJ(diag = 1:11, sex = 1:2, decdxcat = c(1900, 1970, 1980, 1990, 2000))
+prof4[, `:=`(fdiag = factor(diag, levels = 1:11, labels = DIAGLAB),
+             fsex  = factor(sex, levels = 1:2, labels = c("male", "female")),
+             fdec  = factor(decdxcat, levels = c(1900, 1970, 1980, 1990, 2000), labels = DECLAB))]
+prof4[, era := ERALAB[as.character(decdxcat)]]
+prof4[, prof := .I]
+# max attained age observed per era x type, and integrand share beyond it, for the extrapolation flag
+maxage <- d[, .(max_age_obs = max(age1)), by = .(era, diag)]
+lel_profile4 <- function(pr) {
+  nd <- data.frame(age_start = 5, age_end = gpos, event = 0, newrate = 0,
+                   fdiag = pr$fdiag, fsex = pr$fsex, fdec = pr$fdec)
+  nd <- add_dg(nd, pr$diag)
+  nd <- if (full4) add_ix(nd, pr$diag, pr$era, pr$decdxcat, full = TRUE) else add_ix(nd, pr$diag, pr$era, merge_rb = merge_rb)
+  X <- predict(fit4, newdata = nd, type = "lpmatrix")
+  cumexc <- exp(X %*% B4)
+  mx <- maxage[era == pr$era & diag == pr$diag]$max_age_obs
+  res <- list()
+  for (a0 in A0S_ERA) {
+    i0 <- which.min(abs(gpos - a0))
+    Rc <- exp(-(sweep(cumexc, 2, cumexc[i0, ], "-")))
+    Se <- S_exp_cond(pr$sex, a0)[grid >= 5]
+    y <- Rc * Se
+    ok <- gpos >= a0
+    w <- diff(gpos[ok]); yy <- y[ok, , drop = FALSE]
+    seg <- (yy[-1, , drop = FALSE] + yy[-nrow(yy), , drop = FALSE]) / 2 * w
+    surv_le <- colSums(seg)
+    beyond <- colSums(seg[gpos[ok][-1] > mx, , drop = FALSE])   # remaining years accrued beyond max observed age
+    res[[length(res) + 1]] <- data.table(prof = pr$prof, a0 = a0, draw = 0:NSIM, surv_le = surv_le, beyond = beyond)
+  }
+  rbindlist(res)
+}
+sim4 <- rbindlist(lapply(seq_len(nrow(prof4)), function(i) lel_profile4(prof4[i])))
+sim4 <- merge(sim4, prof4[, .(prof, diag, sex, decdxcat)], by = "prof")
+sim4 <- merge(sim4, exp_le, by = c("sex", "a0"))
+
+run_group4 <- function(a0v, era_sel, expr_str) {
+  dsub <- d[era == era_sel]
+  at <- dsub[age0 <= a0v & age1 > a0v]
+  gexpr <- parse(text = expr_str)[[1]]
+  at[, grp := eval(gexpr)]
+  w <- at[, .N, by = .(diag, sex, decdxcat, grp)]
+  allg <- copy(dsub)[, grp := eval(gexpr)]
+  missing <- setdiff(unique(allg$grp), unique(w$grp))
+  if (length(missing)) w <- rbind(w, allg[grp %in% missing, .N, by = .(diag, sex, decdxcat, grp)])
+  w[, wt := N / sum(N), by = grp]
+  natrisk <- at[, .(n_atrisk = .N), by = grp]
+  mxg <- allg[, .(max_age_obs = max(age1)), by = grp]
+  x <- merge(sim4[a0 == a0v], w, by = c("diag", "sex", "decdxcat"), allow.cartesian = TRUE)
+  z <- x[, .(surv_le = sum(wt * surv_le), exp_le = sum(wt * exp_le), beyond = sum(wt * beyond)), by = .(grp, draw)]
+  z[, `:=`(lel = exp_le - surv_le, plost = 100 * (exp_le - surv_le) / exp_le)]
+  out <- z[, .(a0 = a0v, era = era_sel,
+               exp_rem_le = exp_le[draw == 0], surv_rem_le = surv_le[draw == 0],
+               surv_rem_le_lo = quantile(surv_le[draw > 0], .025), surv_rem_le_hi = quantile(surv_le[draw > 0], .975),
+               lel = lel[draw == 0], lel_lo = quantile(lel[draw > 0], .025), lel_hi = quantile(lel[draw > 0], .975),
+               plost = plost[draw == 0], plost_lo = quantile(plost[draw > 0], .025), plost_hi = quantile(plost[draw > 0], .975),
+               pct_le_beyond_obs = 100 * beyond[draw == 0] / surv_le[draw == 0]), by = grp]
+  out <- merge(out, natrisk, by = "grp", all.x = TRUE)
+  merge(out, mxg, by = "grp", all.x = TRUE)
+}
+res4 <- list()
+for (er in c("1990-2006", "1980-89")) {
+  for (a0 in A0S_ERA) {
+    res4[[length(res4) + 1]] <- run_group4(a0, er, "0L")[, `:=`(group = "overall", level = "overall")]
+    res4[[length(res4) + 1]] <- run_group4(a0, er, "diag")[, `:=`(group = "diag", level = DIAGLAB[grp])]
+  }
+}
+res4 <- rbindlist(res4)[, grp := NULL]
+res4[, `:=`(exp_age_reached = a0 + exp_rem_le, surv_age_reached = a0 + surv_rem_le)]
+# extrapolation flag: the model-based mean age reached lies beyond the oldest attained age observed for that era x type
+res4[, extrap_flag := ifelse(surv_age_reached > max_age_obs, "E", "")]
+res4[, model := era_spec]
+setcolorder(res4, c("era", "group", "level", "a0", "n_atrisk", "max_age_obs", "extrap_flag", "pct_le_beyond_obs",
+                    "exp_rem_le", "exp_age_reached", "surv_rem_le", "surv_rem_le_lo", "surv_rem_le_hi", "surv_age_reached"))
+num4 <- setdiff(names(res4), c("era", "group", "level", "a0", "n_atrisk", "extrap_flag", "model"))
+res4[, (num4) := lapply(.SD, round, 2), .SDcols = num4]
+fwrite(res4, file.path(output, "table_lel_1990plus.csv"))
+note("Era-specific LEL (1990-2006) at age 20: overall %.1f (%.1f-%.1f); all cells flagged E = %d of %d",
+     res4[era == "1990-2006" & group == "overall" & a0 == 20]$lel, res4[era == "1990-2006" & group == "overall" & a0 == 20]$lel_lo,
+     res4[era == "1990-2006" & group == "overall" & a0 == 20]$lel_hi, sum(res4$extrap_flag == "E"), nrow(res4))
+print(res4[era == "1990-2006" & a0 == 20, .(level, lel, lel_lo, lel_hi, extrap_flag, max_age_obs, pct_le_beyond_obs)])
+
+# figure: LEL at 20 by type, 1990-2006 (filled) vs all eras (hollow)
+f3 <- res4[era == "1990-2006" & group == "diag" & a0 == 20][order(lel)]
+f3[, level := factor(level, levels = level)]
+f3all <- res_diag[a0 == 20][, .(level = factor(level, levels = levels(f3$level)), lel, lel_lo, lel_hi)]
+ov3 <- res4[era == "1990-2006" & group == "overall" & a0 == 20]
+g3 <- ggplot() +
+  geom_vline(xintercept = ov3$lel, colour = "grey55", linetype = 2) +
+  geom_errorbarh(data = f3all, aes(xmin = lel_lo, xmax = lel_hi, y = as.numeric(level) + 0.22), height = 0, colour = "grey60", linewidth = 0.4) +
+  geom_point(data = f3all, aes(x = lel, y = as.numeric(level) + 0.22), shape = 21, size = 2.3, colour = "grey45", fill = "white") +
+  geom_errorbarh(data = f3, aes(xmin = lel_lo, xmax = lel_hi, y = as.numeric(level)), height = 0, colour = "#1f5fa0") +
+  geom_point(data = f3, aes(x = lel, y = as.numeric(level)), size = 2.5, colour = "#1f5fa0") +
+  annotate("text", x = ov3$lel, y = 0.5, label = sprintf("overall 1990-2006: %.1f y", ov3$lel), hjust = -0.05, size = 3, colour = "grey30") +
+  scale_y_continuous(breaks = seq_along(levels(f3$level)), labels = levels(f3$level)) +
+  scale_x_continuous(expand = expansion(mult = c(0.02, 0.08))) +
+  labs(x = "Loss in expectation of life from age 20 (remaining years of life lost, 95% CI)", y = NULL,
+       title = "Loss in expectation of life by childhood cancer type, diagnosed 1990-2006",
+       subtitle = "Filled: diagnosed 1990-2006 (type x decade model); hollow: all eras. Alive at age 20; 1990-2006 estimates extrapolate beyond observed ages") +
+  theme(panel.grid.major.y = element_line(colour = "grey92"), plot.title.position = "plot",
+        plot.title = element_text(size = 12), plot.subtitle = element_text(size = 8, colour = "grey30"))
+ggsave(file.path(output, "fig_lel_bydiag_1990plus.png"), g3, width = 7.5, height = 4.8, dpi = 300, bg = "white")
+}  # end era-specific block
 
 note("Done.")
 print(res[group %in% c("overall", "decade")])
